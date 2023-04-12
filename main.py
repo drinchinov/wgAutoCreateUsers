@@ -46,7 +46,7 @@ def get_dateTimeNow():
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
-def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, minAllocatedeIp):
+def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, minAllocatedeIp, allowedIp):
 
     elOfWgConf = {}
     massOfWgConf = []
@@ -56,15 +56,24 @@ def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, minAllocated
             try:
                 elOfWgConf[el] = translit(row[el], language_code='ru', reversed=True)
             except:
-                if el == 'created_at' or el == 'updated_at':
+                if el == 'id':
+                    elOfWgConf[el] = get_idForJSONFile(row['name'], row['email'])
+                elif el == 'created_at' or el == 'updated_at':
                     elOfWgConf[el] =  nowParse
                 elif el == 'allocated_ips':
                     elOfWgConf[el] = [minAllocatedeIp]
+                elif el == 'allowed_ips':
+                    elOfWgConf[el] = [allowedIp]
                 else:
                     elOfWgConf[el] = None
         massOfWgConf.append(elOfWgConf)
 
     return massOfWgConf
+
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ID ---------------------------------------------------------------------------------------------------------
+
+def get_idForJSONFile(name, email):
+    return name.replace(' ', '_') + email.replace(' ', '_')
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ЗАПИСИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
@@ -72,7 +81,8 @@ def set_NewJSONconf(massOfWgConf):
 
     for row in massOfWgConf:
         jsonFile = json.dumps(row, indent=4)
-        with open(f'{uuid.uuid4()}.json', 'w+') as createFile:
+        genId = get_idForJSONFile(row['name'], row['email'])
+        with open(f'{genId}.json', 'w+') as createFile:
             createFile.write(jsonFile)
             createFile.close()
 
@@ -85,6 +95,7 @@ if __name__ == '__main__':
     pathToDbClients = './clients' # адрес базы клиентов (/db/clients/*.json)
     pathToListVPN = 'listVPN.csv' # адрес списка впн юзеров
 
+    allowedIp = '192.168.0.0/21'
     ipRange = '10.66.66.1/24' # пул адресов
 
 #---------------------------------------- ЗАДАНИЕ АТРИБУТОВ ДЛЯ СОЗДАНИЯ СЛОВАРЯ ИЗ СПИСКА ВПН ЮЗЕРОВ И БД клиентов /db/clients/*.json ----------------------------------------
@@ -119,8 +130,7 @@ if __name__ == '__main__':
     massOfVPNdicts = get_massOfVPNdicts(pathToListVPN, title_rows_listVPN) # получаем массив словарей из списка ВПН юзеров типа {"title_rows_listVPN" : "VPNUserData"}
     minAllocatedIp = get_minAllocatedIp(pathToDbClients, ipRange) # минимальный свободный ip адрес из пула
     dateTimeNow = get_dateTimeNow() # текущая дата в нужном формате
-    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, minAllocatedIp) # массив новых JSON файлов
-    print(newJSONconf)
+    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, minAllocatedIp, allowedIp) # массив новых JSON файлов
 
-    #set_NewJSONconf(newJSONconf)
+    set_NewJSONconf(newJSONconf)
 
