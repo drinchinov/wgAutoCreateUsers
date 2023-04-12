@@ -5,6 +5,15 @@ import codecs
 import json
 import uuid
 
+import os
+
+from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
 
 pathOfListVPN = 'listVPN_test.csv'
 
@@ -48,7 +57,7 @@ with codecs.open( pathOfListVPN, "r", "utf_8_sig" ) as listVPN_input:
 massOfWgConf = []
 elOfWgConf = {}
 now = datetime.now()
-nowParse = now.strftime("%Y-%m-%dT%H:%M:%S:%fZ")
+nowParse = now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 for row in massOfVPNdicts:
 #    for k, v in row.items():
@@ -59,6 +68,8 @@ for row in massOfVPNdicts:
         except:
             if row1 == 'created_at' or row1 == 'updated_at':
                elOfWgConf[row1] =  nowParse
+            elif 'ips' in row1:
+                elOfWgConf[row1] = []
             else:
                 elOfWgConf[row1] = None
             #print(row1, None)
