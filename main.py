@@ -1,7 +1,10 @@
+from datetime import datetime, date, time
 from transliterate import translit
 import csv
 import codecs
 import json
+import uuid
+
 
 pathOfListVPN = 'listVPN_test.csv'
 
@@ -43,11 +46,38 @@ with codecs.open( pathOfListVPN, "r", "utf_8_sig" ) as listVPN_input:
         
 
 massOfWgConf = []
+elOfWgConf = {}
+now = datetime.now()
+nowParse = now.strftime("%Y-%m-%dT%H:%M:%S:%fZ")
+
 for row in massOfVPNdicts:
-    print(row)
-    '''for key in row:
-        if el == key:
-            massOfWgConf.append(dict(zip(title_rows_listVPN, strVPN)))'''
+#    for k, v in row.items():
+    for row1 in title_rows_dbClients:
+        try:
+            elOfWgConf[row1] = translit(row[row1], language_code='ru', reversed=True)
+            #print(row1, row[row1])
+        except:
+            if row1 == 'created_at' or row1 == 'updated_at':
+               elOfWgConf[row1] =  nowParse
+            else:
+                elOfWgConf[row1] = None
+            #print(row1, None)
+    massOfWgConf.append(elOfWgConf)
+
+
+for row in massOfWgConf:
+    jsonFile = json.dumps(row, indent=4)
+    with open(f'{uuid.uuid4()}.json', 'w+') as createFile:
+        createFile.write(jsonFile)
+        createFile.close()
+print('---------------------------------')
 
 
 
+'''try:
+                print(row[row1])
+                elOfWgConf = row.fromkeys(row1, v)
+                massOfWgConf.append(elOfWgConf)
+            except:
+                elOfWgConf = row.fromkeys(row1, None)
+                massOfWgConf.append(elOfWgConf)'''
