@@ -1,5 +1,5 @@
 listVPN.csv
 wg0.conf
 main1.py
-./clients/*.json
+clients/*.json
 minAllowableIp.py
