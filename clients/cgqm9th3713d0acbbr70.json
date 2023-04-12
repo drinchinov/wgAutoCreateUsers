@@ -1,0 +1,19 @@
+{
+	"id": "cgqm9th3713d0acbbr70",
+	"private_key": "+KqkZnX7npeq0ihNdEtU4YT8DkqAD2eyMqCKtmtXE0g=",
+	"public_key": "W/NzrSJTV7tlHrqNJIvh+YE4DCadYMzMoYo3SGdZtmU=",
+	"preshared_key": "I6p+XpXsasXhcqZjSuxoycvTuTN88OEaTZAEuGgMQbA=",
+	"name": "Дмитрий Ринчинов",
+	"email": "idima1210@mail.ru",
+	"allocated_ips": [
+		"10.66.66.4/32"
+	],
+	"allowed_ips": [
+		"0.0.0.0/0"
+	],
+	"extra_allowed_ips": [],
+	"use_server_dns": true,
+	"enabled": true,
+	"created_at": "2023-04-11T13:47:34.982785385Z",
+	"updated_at": "2023-04-11T13:47:34.982785385Z"
+}

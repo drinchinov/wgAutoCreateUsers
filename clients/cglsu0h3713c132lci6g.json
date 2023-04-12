@@ -1,0 +1,19 @@
+{
+	"id": "cglsu0h3713c132lci6g",
+	"private_key": "CKPRWgjDiW6uw6X2jks1h3BNHntgU26B/1ZuMeRKJUw=",
+	"public_key": "4hdq54xeNvNKV0iOKdmobLSote4rzAJAORl8EyJTiQU=",
+	"preshared_key": "zE4T7pNMKKRIZFjtwYfYL9JQUfmXEtxrxl599ZXtFNA=",
+	"name": "Sayan Danzhinov Apple",
+	"email": "",
+	"allocated_ips": [
+		"10.66.66.5/32"
+	],
+	"allowed_ips": [
+		"0.0.0.0/0"
+	],
+	"extra_allowed_ips": [],
+	"use_server_dns": true,
+	"enabled": true,
+	"created_at": "2023-04-04T07:17:22.976537488Z",
+	"updated_at": "2023-04-04T07:31:50.645734842Z"
+}

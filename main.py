@@ -1,94 +1,126 @@
-from datetime import datetime, date, time
+#---------------------------------------- ИМПОРТ БИБЛИОТЕК --------------------------------------------------------------------------------------------------------------------
+
+from datetime import datetime
 from transliterate import translit
-import csv
-import codecs
-import json
-import uuid
+import os, codecs, json, ipaddress, uuid
 
-import os
+#---------------------------------------- СЧИТЫВАНИЕ И ПАРСИНГ ДАННЫХ ИЗ БД /db/clients/*.json --------------------------------------------------------------------------------
 
-from dotenv import load_dotenv
+def get_massOfVPNdicts(pathToListVPN, title_rows_listVPN):
+    with codecs.open( pathToListVPN, "r", "utf_8_sig" ) as listVPN_input:
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+        listVPN_output = listVPN_input.read().split('\n') # или читайте по строке
+        listVPN_input.close()
+        massOfVPNdicts = []
 
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path)
+        for row in listVPN_output:
+            strVPN = row.split(',')
+            if len(strVPN) == 5:
+                massOfVPNdicts.append(dict(zip(title_rows_listVPN, strVPN)))
+    return massOfVPNdicts
 
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ОПТИМАЛЬНОГО allocated_ips ИЗ ПУЛА АДРЕСОВ --------------------------------------------------------------------
 
-pathOfListVPN = 'listVPN_test.csv'
+def get_minAllocatedIp(pathToDbClients, ipRange):
 
-title_rows_listVPN = [
-                        'name',
-                        'dep',
-                        'spec',
-                        'email',
-                        'number'
-                    ]
-title_rows_dbClients = [
-                        'id',
-                        'private_key',
-                        'public_key',
-                        'preshared_key',
-                        'name',
-                        'email',
-                        'allocated_ips',
-                        'allowed_ips',
-                        'extra_allowed_ips',
-                        'use_server_dns',
-                        'enabled',
-                        'created_at',
-                        'updated_at'
-                    ]
+    listOfIpRange = list(ipaddress.ip_network(ipRange, False).hosts()) # находим список всех адресов пула
+    listOfFiles = os.listdir(pathToDbClients) # находим названия всех файлов БД
+    listOfBusyAllocatedIps = []
 
-#Иванов Иван Иванович,Отдел разработки,специалист по PLSQL,coolsqlproger@mail.ru,87777777777
+    for el in listOfFiles:
+        with open(f'./clients/{el}', 'r', encoding='utf-8') as f: #открыли файл с данными
+            obj = json.load(f) #загнали все, что получилось в переменную
+            interface = ''.join(obj['allocated_ips']).partition('/')[0] # получили ip без маски
+            listOfBusyAllocatedIps.append(ipaddress.ip_address(interface)) # пополняем список занятых ip адресов
 
-with codecs.open( pathOfListVPN, "r", "utf_8_sig" ) as listVPN_input:
+    listOfallowableIps = list(set(listOfIpRange) ^ set(listOfBusyAllocatedIps)) # получаем список всех свободных адресов 
+    minOFlistOfallowableIps = min(listOfallowableIps)
+    return format(ipaddress.IPv4Address(minOFlistOfallowableIps)) # возвращаем минимальный свободный ip адрес
 
-    listVPN_output = listVPN_input.read().split('\n') # или читайте по строке
-    listVPN_input.close()
-    massOfVPNdicts = []
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ datetime.now() В НУЖНОМ ДЛЯ created_at, updated_at ФОРМАТЕ ----------------------------------------------------
 
-    for row in listVPN_output:
-        strVPN = row.split(',')
-        if len(strVPN) == 5:
-            massOfVPNdicts.append(dict(zip(title_rows_listVPN, strVPN)))
-        
+def get_dateTimeNow():
+    now = datetime.now()
+    nowParse = now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return nowParse
 
-massOfWgConf = []
-elOfWgConf = {}
-now = datetime.now()
-nowParse = now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
-for row in massOfVPNdicts:
-#    for k, v in row.items():
-    for row1 in title_rows_dbClients:
-        try:
-            elOfWgConf[row1] = translit(row[row1], language_code='ru', reversed=True)
-            #print(row1, row[row1])
-        except:
-            if row1 == 'created_at' or row1 == 'updated_at':
-               elOfWgConf[row1] =  nowParse
-            elif 'ips' in row1:
-                elOfWgConf[row1] = []
-            else:
-                elOfWgConf[row1] = None
-            #print(row1, None)
-    massOfWgConf.append(elOfWgConf)
+def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, minAllocatedeIp):
 
+    elOfWgConf = {}
+    massOfWgConf = []
 
-for row in massOfWgConf:
-    jsonFile = json.dumps(row, indent=4)
-    with open(f'{uuid.uuid4()}.json', 'w+') as createFile:
-        createFile.write(jsonFile)
-        createFile.close()
-print('---------------------------------')
-
-
-
-'''try:
-                print(row[row1])
-                elOfWgConf = row.fromkeys(row1, v)
-                massOfWgConf.append(elOfWgConf)
+    for row in massOfVPNdicts:
+        for el in title_rows_dbClients:
+            try:
+                elOfWgConf[el] = translit(row[el], language_code='ru', reversed=True)
             except:
-                elOfWgConf = row.fromkeys(row1, None)
-                massOfWgConf.append(elOfWgConf)'''
+                if el == 'created_at' or el == 'updated_at':
+                    elOfWgConf[el] =  nowParse
+                elif el == 'allocated_ips':
+                    elOfWgConf[el] = [minAllocatedeIp]
+                else:
+                    elOfWgConf[el] = None
+        massOfWgConf.append(elOfWgConf)
+
+    return massOfWgConf
+
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ЗАПИСИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
+
+def set_NewJSONconf(massOfWgConf):
+
+    for row in massOfWgConf:
+        jsonFile = json.dumps(row, indent=4)
+        with open(f'{uuid.uuid4()}.json', 'w+') as createFile:
+            createFile.write(jsonFile)
+            createFile.close()
+
+#---------------------------------------- MAIN FUNCTION -----------------------------------------------------------------------------------------------------------------------
+
+if __name__ == '__main__':
+
+#---------------------------------------- ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ------------------------------------------------------------------------------------------------------------
+
+    pathToDbClients = './clients' # адрес базы клиентов (/db/clients/*.json)
+    pathToListVPN = 'listVPN.csv' # адрес списка впн юзеров
+
+    ipRange = '10.66.66.1/24' # пул адресов
+
+#---------------------------------------- ЗАДАНИЕ АТРИБУТОВ ДЛЯ СОЗДАНИЯ СЛОВАРЯ ИЗ СПИСКА ВПН ЮЗЕРОВ И БД клиентов /db/clients/*.json ----------------------------------------
+
+    # атрибуты списка впн юзеров
+    title_rows_listVPN = [
+                            'name',
+                            'dep',
+                            'spec',
+                            'email',
+                            'number'
+                        ]
+
+    #атрибуты бд клиентов
+    title_rows_dbClients = [
+                            'id',
+                            'private_key',
+                            'public_key',
+                            'preshared_key',
+                            'name',
+                            'email',
+                            'allocated_ips',
+                            'allowed_ips',
+                            'extra_allowed_ips',
+                            'use_server_dns',
+                            'enabled',
+                            'created_at',
+                            'updated_at'
+                        ]
+
+
+    massOfVPNdicts = get_massOfVPNdicts(pathToListVPN, title_rows_listVPN) # получаем массив словарей из списка ВПН юзеров типа {"title_rows_listVPN" : "VPNUserData"}
+    minAllocatedIp = get_minAllocatedIp(pathToDbClients, ipRange) # минимальный свободный ip адрес из пула
+    dateTimeNow = get_dateTimeNow() # текущая дата в нужном формате
+    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, minAllocatedIp) # массив новых JSON файлов
+    print(newJSONconf)
+
+    #set_NewJSONconf(newJSONconf)
+

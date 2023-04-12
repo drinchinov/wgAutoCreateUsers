@@ -1,0 +1,19 @@
+{
+	"id": "cgp59o93713c132lcif0",
+	"private_key": "ANVoXDAADWpQk6G1g4C6DzxqS8IRX/WGFEpZlPgcsGk=",
+	"public_key": "JSY2GRzD/22mHt8xSTfop95n/ceD8VWuzetTvkB0KzI=",
+	"preshared_key": "3sF0PkH9k8AgzUaluNBkddsrFnbQsgJYsSmlvpuW8AQ=",
+	"name": "notebookIT",
+	"email": "",
+	"allocated_ips": [
+		"10.66.66.9/32"
+	],
+	"allowed_ips": [
+		"0.0.0.0/0"
+	],
+	"extra_allowed_ips": [],
+	"use_server_dns": true,
+	"enabled": true,
+	"created_at": "2023-04-09T06:02:09.71859059Z",
+	"updated_at": "2023-04-09T06:02:09.71859059Z"
+}
