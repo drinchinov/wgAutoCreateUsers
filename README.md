@@ -1,2 +1,2 @@
 # wgAutoCreateUsers
-Push UserConf from xls file to WireGuard 
+Push UserConf from csv file to WireGuard 
