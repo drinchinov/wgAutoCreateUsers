@@ -3,3 +3,4 @@ wg0.conf
 main1.py
 clients/*.json
 minAllowableIp.py
+.ENV
