@@ -7,6 +7,7 @@ import os, codecs, json, ipaddress, smtplib
 #---------------------------------------- СЧИТЫВАНИЕ И ПАРСИНГ ДАННЫХ ИЗ БД /db/clients/*.json --------------------------------------------------------------------------------
 
 def get_massOfVPNdicts(pathToListVPN, title_rows_listVPN):
+
     with codecs.open( pathToListVPN, "r", "utf_8_sig" ) as listVPN_input:
 
         listVPN_output = listVPN_input.read().split('\n') # или читайте по строке
@@ -64,7 +65,7 @@ def generateKeys():
     privateKey = list_keys[0]
     public_key = list_keys[1]
     preshared_key = list_keys[2]
-    privateKey, public_key, preshared_key
+    return privateKey, public_key, preshared_key
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
