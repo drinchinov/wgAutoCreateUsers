@@ -70,17 +70,31 @@ def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocate
             try:
                 elOfWgConf[el] = get_translitString(row[el]) 
             except:
+
                 if el == 'id':
                     idOfRow = get_translitString(row['name']) + '_' + get_translitString(row['email'])
                     elOfWgConf[el] = idOfRow
-                elif el == 'created_at' or el == 'updated_at':
-                    elOfWgConf[el] =  nowParse
+
                 elif el == 'allocated_ips':
                     minAllocatedIp = min(listAllocatedIp)
                     elOfWgConf[el] = [format(ipaddress.IPv4Address(minAllocatedIp))]
                     listAllocatedIp.remove(minAllocatedIp)
+
                 elif el == 'allowed_ips':
                     elOfWgConf[el] = [allowedIp]
+
+                elif el == 'extra_allowed_ips':
+                    elOfWgConf[el] = []
+
+                elif el == 'use_server_dns':
+                    elOfWgConf[el] = True
+
+                elif el == 'enabled':
+                    elOfWgConf[el] = True
+
+                elif el == 'created_at' or el == 'updated_at':
+                    elOfWgConf[el] =  nowParse
+
                 else:
                     elOfWgConf[el] = None
 
@@ -90,14 +104,16 @@ def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocate
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ЗАПИСИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
-def set_NewJSONconf(massOfWgConf):
-
+def set_NewJSONconf(nameOfNewPathDB, massOfWgConf):
+    
+    if not os.path.exists(nameOfNewPathDB):
+        os.mkdir(nameOfNewPathDB)
     for row in massOfWgConf:
         nameForGenId = row['name']#get_translitString(row['name'])
         emailForGenId = row['email']#get_translitString(row['email'])
         jsonFile = json.dumps(row, indent=4)
         genId = nameForGenId + '_' + emailForGenId
-        with open(f'{genId}.json', 'w+') as createFile:
+        with open(f'{nameOfNewPathDB}/{genId}.json', 'w+') as createFile:
             createFile.write(jsonFile)
             createFile.close()
 
@@ -109,9 +125,12 @@ if __name__ == '__main__':
 
     pathToDbClients = './clients' # адрес базы клиентов (/db/clients/*.json)
     pathToListVPN = 'listVPN.csv' # адрес списка впн юзеров
+    nameOfNewPathDB = 'newClient'
 
     allowedIp = '192.168.0.0/21'
     ipRange = '10.66.66.1/24' # пул адресов
+
+
 
 #---------------------------------------- ЗАДАНИЕ АТРИБУТОВ ДЛЯ СОЗДАНИЯ СЛОВАРЯ ИЗ СПИСКА ВПН ЮЗЕРОВ И БД клиентов /db/clients/*.json ----------------------------------------
 
@@ -150,5 +169,5 @@ if __name__ == '__main__':
     newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, AllocatedIps, allowedIp) # массив новых JSON файлов
 
 
-    set_NewJSONconf(newJSONconf)
+    set_NewJSONconf(nameOfNewPathDB, newJSONconf)
 
