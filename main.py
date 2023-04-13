@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from transliterate import translit
-import os, codecs, json, ipaddress, uuid
+import os, codecs, json, ipaddress, smtplib
 
 #---------------------------------------- СЧИТЫВАНИЕ И ПАРСИНГ ДАННЫХ ИЗ БД /db/clients/*.json --------------------------------------------------------------------------------
 
@@ -21,11 +21,11 @@ def get_massOfVPNdicts(pathToListVPN, title_rows_listVPN):
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ОПТИМАЛЬНОГО allocated_ips ИЗ ПУЛА АДРЕСОВ --------------------------------------------------------------------
 
-def get_AllocatedIps(pathToDbClients, ipRange):
+def get_AllocatedIps(pathToDbClients, ipRange, gateAwayIp):
 
     listOfIpRange = list(ipaddress.ip_network(ipRange, False).hosts()) # находим список всех адресов пула
     listOfFiles = os.listdir(pathToDbClients) # находим названия всех файлов БД
-    listOfBusyAllocatedIps = []
+    listOfBusyAllocatedIps = [gateAwayIp]
 
     for el in listOfFiles:
         with open(f'./clients/{el}', 'r', encoding='utf-8') as f: #открыли файл с данными
@@ -35,8 +35,7 @@ def get_AllocatedIps(pathToDbClients, ipRange):
 
     listOfallowableIps = list(set(listOfIpRange) ^ set(listOfBusyAllocatedIps)) # получаем список всех свободных адресов 
 
-    
-    return listOfallowableIps#format(ipaddress.IPv4Address(minOFlistOfallowableIps)) # возвращаем минимальный свободный ip адрес
+    return listOfallowableIps # возвращаем минимальный свободный ip адрес
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ datetime.now() В НУЖНОМ ДЛЯ created_at, updated_at ФОРМАТЕ ----------------------------------------------------
 
@@ -56,16 +55,26 @@ def get_translitString(str):
 
     return strOut
 
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ КЛЮЧЕЙ (private_key, public_key, preshared_key)  --------------------------------------------------------------
+
+def generateKeys():
+
+    list_keys = os.popen('umask 077 && wg genkey > prkey && cat prkey && wg pubkey < prkey; wg genpsk').readlines()
+    list_keys = [row.rstrip() for row in list_keys]
+    privateKey = list_keys[0]
+    public_key = list_keys[1]
+    preshared_key = list_keys[2]
+    privateKey, public_key, preshared_key
+
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
-def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocatedIp, allowedIp):
-
-    
+def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocatedIp, allowedIp, prefixOfIpRange):
+ 
     massOfWgConf = []
-    #print(massOfVPNdicts)
 
     for row in massOfVPNdicts: 
         elOfWgConf = {}
+        privateKey, public_key, preshared_key = generateKeys()
         for el in title_rows_dbClients:
             try:
                 elOfWgConf[el] = get_translitString(row[el]) 
@@ -75,9 +84,18 @@ def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocate
                     idOfRow = get_translitString(row['name']) + '_' + get_translitString(row['email'])
                     elOfWgConf[el] = idOfRow
 
+                elif el == 'private_key':
+                    elOfWgConf[el] = privateKey
+
+                elif el == 'public_key':
+                    elOfWgConf[el] = public_key
+
+                elif el == 'preshared_key':
+                    elOfWgConf[el] = preshared_key
+
                 elif el == 'allocated_ips':
                     minAllocatedIp = min(listAllocatedIp)
-                    elOfWgConf[el] = [format(ipaddress.IPv4Address(minAllocatedIp))]
+                    elOfWgConf[el] = [format(ipaddress.IPv4Address(minAllocatedIp)) + '/' + prefixOfIpRange]
                     listAllocatedIp.remove(minAllocatedIp)
 
                 elif el == 'allowed_ips':
@@ -117,6 +135,14 @@ def set_NewJSONconf(nameOfNewPathDB, massOfWgConf):
             createFile.write(jsonFile)
             createFile.close()
 
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ОТПРАВКИ СООБЩЕНИЯ ПО ПОЧТЕ  --------------------------------------------------------------------------------------------
+
+def sendMessageToSMTPServer(addrOfSMTPServer, portOfSMTPServer, login, passwd):
+
+    smtpObj = smtplib.SMTP(addrOfSMTPServer, portOfSMTPServer)
+    smtpObj.starttls()
+    smtpObj.login(login, passwd)
+
 #---------------------------------------- MAIN FUNCTION -----------------------------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
@@ -129,6 +155,9 @@ if __name__ == '__main__':
 
     allowedIp = '192.168.0.0/21'
     ipRange = '10.66.66.1/24' # пул адресов
+
+    gateAwayIp = ipaddress.IPv4Address(ipRange.partition('/')[0])
+    prefixOfIpRange = (str(ipaddress.IPv4Network(ipRange, strict=False).prefixlen))
 
 
 
@@ -162,11 +191,9 @@ if __name__ == '__main__':
 
 
     massOfVPNdicts = get_massOfVPNdicts(pathToListVPN, title_rows_listVPN) # получаем массив словарей из списка ВПН юзеров типа {"title_rows_listVPN" : "VPNUserData"}
-    print(len(massOfVPNdicts))
-    #print(massOfVPNdicts)
-    AllocatedIps = get_AllocatedIps(pathToDbClients, ipRange) # свободные отсортированные ip адреса из пула
+    AllocatedIps = get_AllocatedIps(pathToDbClients, ipRange, gateAwayIp) # свободные отсортированные ip адреса из пула
     dateTimeNow = get_dateTimeNow() # текущая дата в нужном формате
-    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, AllocatedIps, allowedIp) # массив новых JSON файлов
+    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, AllocatedIps, allowedIp, prefixOfIpRange) # массив новых JSON файлов
 
 
     set_NewJSONconf(nameOfNewPathDB, newJSONconf)
