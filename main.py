@@ -4,6 +4,7 @@ from datetime import datetime
 from transliterate import translit
 from jinja2 import Environment, FileSystemLoader
 import os, codecs, json, ipaddress, smtplib
+improt gette
 
 #---------------------------------------- СЧИТЫВАНИЕ И ПАРСИНГ ДАННЫХ ИЗ БД /db/clients/*.json --------------------------------------------------------------------------------
 
@@ -30,7 +31,7 @@ def get_AllocatedIps(pathToDbClients, ipRange, gateAwayIp):
     listOfBusyAllocatedIps = [gateAwayIp]
 
     for el in listOfFiles:
-        with open(f'./clients/{el}', 'r', encoding='utf-8') as f: #открыли файл с данными
+        with open(f'{pathToDbClients}/{el}', 'r', encoding='utf-8') as f: #открыли файл с данными
             obj = json.load(f) #загнали все, что получилось в переменную
             interface = ''.join(obj['allocated_ips']).partition('/')[0] # получили ip без маски
             listOfBusyAllocatedIps.append(ipaddress.ip_address(interface)) # пополняем список занятых ip адресов
@@ -47,7 +48,7 @@ def get_dateTimeNow():
     nowWithUtc = now.strftime("%Y-%m-%d %H:%M:%S.%f +0000 UTC")
     return nowParse, nowWithUtc
 
-#---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ID ---------------------------------------------------------------------------------------------------------
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ID -----------------------------------------------------------------------------------------------------------
 
 def get_translitString(str):
 
@@ -138,16 +139,15 @@ def set_NewJSONconf(nameOfNewPathDB, massOfWgConf):
             createFile.write(jsonFile)
             createFile.close()
 
-#---------------------------------------- ФУНКЦИЯ ДЛЯ ДОПОЛНЕНИЯ КОФИГУРАЦИОННОГО ФАЙЛА (/etc/wireguard/)  --------------------------------------------------------------------------------------------
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ДОПОЛНЕНИЯ КОФИГУРАЦИОННОГО ФАЙЛА (/etc/wireguard/)  -----------------------------------------------------------------
 
-def setNewConfFile(massOfWgConf, pathTemplates, filenameTemplate, dateTimeNowWithUtc):
+def setNewConfFile(massOfWgConf, pathTemplates, filenameTemplate, dateTimeNowWithUtc, pathToWgConf):
     environment = Environment(loader=FileSystemLoader(pathTemplates))
     template = environment.get_template(filenameTemplate)
     users = massOfWgConf
     newUsers = []
 
     for user in users:
-        filename = f"newUsers.txt"
         content = template.render(
             user,
             AllowedIPs = ''.join(user["allocated_ips"]),
@@ -155,7 +155,7 @@ def setNewConfFile(massOfWgConf, pathTemplates, filenameTemplate, dateTimeNowWit
             )
         newUsers.append(content)
 
-    with open(filename, mode="w", encoding="utf-8") as newVpnUsers:
+    with open(pathToWgConf, mode="a+", encoding="utf-8") as newVpnUsers:
         for newUser in newUsers:
             newVpnUsers.seek(0, 2)
             newVpnUsers.write(newUser + '\n')
@@ -175,16 +175,17 @@ if __name__ == '__main__':
 
 #---------------------------------------- ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ------------------------------------------------------------------------------------------------------------
 
-    pathToDbClients = './clients' # адрес базы клиентов (/db/clients/*.json)
-    pathToListVPN = 'listVPN.csv' # адрес списка впн юзеров
-    nameOfNewPathDB = 'newClients'
+    pathToDbClients = '/db/clients.bck' # адрес базы клиентов (/db/clients/*.json)
+    pathToListVPN = 'listVPN_test.csv' # адрес списка впн юзеров
+    nameOfNewPathDB = '/db/clients.bck'
+    pathToWgConf = '/etc/wireguard/wg0.conf.bck'
 
     allowedIp = '192.168.0.0/21'
     ipRange = '10.66.66.1/24' # пул адресов
 
     gateAwayIp = ipaddress.IPv4Address(ipRange.partition('/')[0])
     prefixOfIpRange = (str(ipaddress.IPv4Network(ipRange, strict=False).prefixlen))
-    prefixOfAllowedIp = '/32'
+    prefixOfAllowedIp = '32'
 
     pathTemplates = "./templates"
     filenameTemplate = "template.txt"
@@ -222,6 +223,6 @@ if __name__ == '__main__':
     dateTimeNow, dateTimeNowWithUtc = get_dateTimeNow() # текущая дата в нужном формате
     newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, AllocatedIps, allowedIp, prefixOfAllowedIp) # массив новых JSON файлов
 
-    setNewConfFile(newJSONconf, pathTemplates, filenameTemplate, dateTimeNowWithUtc)
+    setNewConfFile(newJSONconf, pathTemplates, filenameTemplate, dateTimeNowWithUtc, pathToWgConf)
     set_NewJSONconf(nameOfNewPathDB, newJSONconf)
 
