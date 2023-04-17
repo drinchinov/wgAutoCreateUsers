@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from transliterate import translit
+from jinja2 import Environment, FileSystemLoader
 import os, codecs, json, ipaddress, smtplib
 
 #---------------------------------------- СЧИТЫВАНИЕ И ПАРСИНГ ДАННЫХ ИЗ БД /db/clients/*.json --------------------------------------------------------------------------------
@@ -43,7 +44,8 @@ def get_AllocatedIps(pathToDbClients, ipRange, gateAwayIp):
 def get_dateTimeNow():
     now = datetime.now()
     nowParse = now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    return nowParse
+    nowWithUtc = now.strftime("%Y-%m-%d %H:%M:%S.%f +0000 UTC")
+    return nowParse, nowWithUtc
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ ID ---------------------------------------------------------------------------------------------------------
 
@@ -69,7 +71,7 @@ def generateKeys():
 
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ГЕНЕРАЦИИ НОВОГО JSON ФАЙЛА  --------------------------------------------------------------------------------------------
 
-def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocatedIp, allowedIp, prefixOfIpRange):
+def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocatedIp, allowedIp, prefixOfAllowedIp):
  
     massOfWgConf = []
 
@@ -96,7 +98,7 @@ def get_newJSONconf(massOfVPNdicts, title_rows_dbClients, nowParse, listAllocate
 
                 elif el == 'allocated_ips':
                     minAllocatedIp = min(listAllocatedIp)
-                    elOfWgConf[el] = [format(ipaddress.IPv4Address(minAllocatedIp)) + '/' + prefixOfIpRange]
+                    elOfWgConf[el] = [format(ipaddress.IPv4Address(minAllocatedIp)) + '/' + prefixOfAllowedIp]
                     listAllocatedIp.remove(minAllocatedIp)
 
                 elif el == 'allowed_ips':
@@ -136,6 +138,29 @@ def set_NewJSONconf(nameOfNewPathDB, massOfWgConf):
             createFile.write(jsonFile)
             createFile.close()
 
+#---------------------------------------- ФУНКЦИЯ ДЛЯ ДОПОЛНЕНИЯ КОФИГУРАЦИОННОГО ФАЙЛА (/etc/wireguard/)  --------------------------------------------------------------------------------------------
+
+def setNewConfFile(massOfWgConf, pathTemplates, filenameTemplate, dateTimeNowWithUtc):
+    environment = Environment(loader=FileSystemLoader(pathTemplates))
+    template = environment.get_template(filenameTemplate)
+    users = massOfWgConf
+    newUsers = []
+
+    for user in users:
+        filename = f"newUsers.txt"
+        content = template.render(
+            user,
+            AllowedIPs = ''.join(user["allocated_ips"]),
+            datetimenow = dateTimeNowWithUtc
+            )
+        newUsers.append(content)
+
+    with open(filename, mode="w", encoding="utf-8") as newVpnUsers:
+        for newUser in newUsers:
+            newVpnUsers.seek(0, 2)
+            newVpnUsers.write(newUser + '\n')
+    newVpnUsers.close()
+
 #---------------------------------------- ФУНКЦИЯ ДЛЯ ОТПРАВКИ СООБЩЕНИЯ ПО ПОЧТЕ  --------------------------------------------------------------------------------------------
 
 def sendMessageToSMTPServer(addrOfSMTPServer, portOfSMTPServer, login, passwd):
@@ -152,15 +177,17 @@ if __name__ == '__main__':
 
     pathToDbClients = './clients' # адрес базы клиентов (/db/clients/*.json)
     pathToListVPN = 'listVPN.csv' # адрес списка впн юзеров
-    nameOfNewPathDB = 'newClient'
+    nameOfNewPathDB = 'newClients'
 
     allowedIp = '192.168.0.0/21'
     ipRange = '10.66.66.1/24' # пул адресов
 
     gateAwayIp = ipaddress.IPv4Address(ipRange.partition('/')[0])
     prefixOfIpRange = (str(ipaddress.IPv4Network(ipRange, strict=False).prefixlen))
+    prefixOfAllowedIp = '/32'
 
-
+    pathTemplates = "./templates"
+    filenameTemplate = "template.txt"
 
 #---------------------------------------- ЗАДАНИЕ АТРИБУТОВ ДЛЯ СОЗДАНИЯ СЛОВАРЯ ИЗ СПИСКА ВПН ЮЗЕРОВ И БД клиентов /db/clients/*.json ----------------------------------------
 
@@ -190,12 +217,11 @@ if __name__ == '__main__':
                             'updated_at'
                         ]
 
-
     massOfVPNdicts = get_massOfVPNdicts(pathToListVPN, title_rows_listVPN) # получаем массив словарей из списка ВПН юзеров типа {"title_rows_listVPN" : "VPNUserData"}
     AllocatedIps = get_AllocatedIps(pathToDbClients, ipRange, gateAwayIp) # свободные отсортированные ip адреса из пула
-    dateTimeNow = get_dateTimeNow() # текущая дата в нужном формате
-    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, AllocatedIps, allowedIp, prefixOfIpRange) # массив новых JSON файлов
+    dateTimeNow, dateTimeNowWithUtc = get_dateTimeNow() # текущая дата в нужном формате
+    newJSONconf = get_newJSONconf(massOfVPNdicts, title_rows_dbClients, dateTimeNow, AllocatedIps, allowedIp, prefixOfAllowedIp) # массив новых JSON файлов
 
-
+    setNewConfFile(newJSONconf, pathTemplates, filenameTemplate, dateTimeNowWithUtc)
     set_NewJSONconf(nameOfNewPathDB, newJSONconf)
 
