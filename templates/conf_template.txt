@@ -1,0 +1,10 @@
+
+# ID:           {{id}}
+# Name:         {{name}}
+# Email:        {{email}}
+# Created at:   {{datetimenow}}
+# Update at:    {{datetimenow}}
+[Peer]
+PublicKey = {{public_key}}
+PresharedKey = {{preshared_key}}
+AllowedIPs = {{AllowedIPs}}

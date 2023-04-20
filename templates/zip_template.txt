@@ -1,0 +1,12 @@
+[Interface]
+Address = {{''.join(allocated_ips)}}
+PrivateKey = {{private_key}}
+DNS = 192.168.7.200,8.8.8.8
+MTU = 1400
+
+[Peer]
+PublicKey = {{public_key}}
+PresharedKey = {{preshared_key}}
+AllowedIPs = {{''.join(allowed_ips)}}
+Endpoint = 92.126.145.86:39889
+PersistentKeepalive = 15

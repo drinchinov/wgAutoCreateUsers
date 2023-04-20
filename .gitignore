@@ -1,0 +1,8 @@
+listVPN.csv
+wg0.conf
+clients/*.json
+newUsers.txt
+venv
+listVPNt_test.csv
+mail.ini
+config.ini
